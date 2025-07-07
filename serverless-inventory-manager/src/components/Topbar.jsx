@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 export default function Topbar({ openDropdown, setOpenDropdown }) {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [notifications, setNotifications] = useState([])
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const profileMenuRef = useRef(null)
   const notificationsMenuRef = useRef(null)
@@ -214,7 +214,16 @@ export default function Topbar({ openDropdown, setOpenDropdown }) {
                     <span>Preferences</span>
                   </button>
                   <div className="border-t border-slate-100 my-2 dark:border-slate-700"></div>
-                  <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900">
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900"
+                    onMouseDown={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Sign Out button mouse down');
+                      await logout();
+                      window.location.href = '/login';
+                    }}
+                  >
                     Sign Out
                   </button>
                 </div>

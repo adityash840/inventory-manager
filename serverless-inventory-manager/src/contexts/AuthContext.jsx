@@ -12,27 +12,18 @@ export function AuthProvider({ children }) {
   const navigate = typeof window !== 'undefined' ? (path) => { window.location.href = path } : () => {};
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    // Always sign out any existing session on app load
+    const forceSignOut = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user || null)
+        await supabase.auth.signOut()
       } catch (error) {
-        setUser(null)
+        console.error('Error signing out on app load:', error)
       } finally {
+        setUser(null)
         setLoading(false)
       }
     }
-    getInitialSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user || null)
-        setLoading(false)
-      }
-    )
-    return () => subscription.unsubscribe()
+    forceSignOut()
   }, [])
 
   const login = (userData) => {
@@ -41,13 +32,20 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
+      console.log('Logout called')
       if (user && user.id !== 'demo-user') {
         await supabase.auth.signOut()
+        console.log('Called supabase.auth.signOut()')
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Session after signOut:', session)
       }
       setUser(null)
+      console.log('User set to null')
+      window.location.href = '/login'
     } catch (error) {
       console.error('Error signing out:', error)
       setUser(null)
+      window.location.href = '/login'
     }
   }
 

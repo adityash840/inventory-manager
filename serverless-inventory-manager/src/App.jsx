@@ -40,6 +40,7 @@ const Reports = () => (
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
+  console.log('ProtectedRoute: user =', user, 'loading =', loading)
   if (loading) return null // or a loading spinner
   if (!user) return <Navigate to="/login" replace />
   return children
