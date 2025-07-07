@@ -12,28 +12,27 @@ export function AuthProvider({ children }) {
   const navigate = typeof window !== 'undefined' ? (path) => { window.location.href = path } : () => {};
 
   useEffect(() => {
-    // On mount, check session
-    const checkSession = async () => {
+    // Get initial session
+    const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        // If not on /login or /register, force sign out and redirect to /login
-        if (!['/login', '/register'].includes(location.pathname)) {
-          if (session) {
-            await supabase.auth.signOut();
-          }
-          setUser(null);
-          setLoading(false);
-          navigate('/login');
-        } else {
-          setUser(session?.user || null);
-          setLoading(false);
-        }
+        const { data: { session } } = await supabase.auth.getSession()
+        setUser(session?.user || null)
       } catch (error) {
-        setUser(null);
-        setLoading(false);
+        setUser(null)
+      } finally {
+        setLoading(false)
       }
-    };
-    checkSession();
+    }
+    getInitialSession()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user || null)
+        setLoading(false)
+      }
+    )
+    return () => subscription.unsubscribe()
   }, [])
 
   const login = (userData) => {
