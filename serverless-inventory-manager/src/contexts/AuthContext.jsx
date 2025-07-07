@@ -41,11 +41,9 @@ export function AuthProvider({ children }) {
       }
       setUser(null)
       console.log('User set to null')
-      window.location.href = '/login'
     } catch (error) {
       console.error('Error signing out:', error)
       setUser(null)
-      window.location.href = '/login'
     }
   }
 
