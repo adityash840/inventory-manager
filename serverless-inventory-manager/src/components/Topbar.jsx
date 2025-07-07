@@ -221,7 +221,7 @@ export default function Topbar({ openDropdown, setOpenDropdown }) {
                       e.stopPropagation();
                       console.log('Sign Out button mouse down');
                       await logout();
-                      window.location.href = '/login';
+                      navigate('/login');
                     }}
                   >
                     Sign Out
