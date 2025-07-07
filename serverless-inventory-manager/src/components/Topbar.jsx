@@ -1,11 +1,48 @@
-import { useState } from 'react'
-import { User, Moon, Sun, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Moon, Sun, ChevronDown, Bell, Search, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
+import { supabase } from '../lib/supabase'
 
-export default function Topbar() {
-  const { user } = useAuth()
+export default function Topbar({ openDropdown, setOpenDropdown }) {
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const { user } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+  const profileMenuRef = useRef(null)
+
+  const displayName = user?.email ? user.email.split('@')[0] : 'Demo User'
+  const displayEmail = user?.email || 'demo@example.com'
+  const isDemoUser = user?.id === 'demo-user' || displayEmail === 'demo@example.com'
+
+  // Fetch low stock notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, quantity')
+        .lt('quantity', 10)
+        .order('quantity', { ascending: true })
+      if (!error) setNotifications(data || [])
+    }
+    fetchNotifications()
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setOpenDropdown(null)
+      }
+    }
+    if (openDropdown === 'profile') {
+      document.addEventListener('mousedown', handleClickOutside)
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openDropdown])
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode)
@@ -13,18 +50,62 @@ export default function Topbar() {
   }
 
   return (
-    <div className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
-      <div className="flex items-center">
-        <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
+    <div className="flex h-20 items-center justify-between topbar px-8 bg-white/90 dark:bg-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex items-center space-x-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search products, sales, customers..."
+            className="pl-10 pr-4 py-2 w-80 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
+          />
+        </div>
       </div>
       
       <div className="flex items-center space-x-4">
+        {/* Notifications */}
+        <div className="relative">
+          <button
+            className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-800"
+            onClick={() => setOpenDropdown('notifications')}
+          >
+            <Bell className="h-5 w-5" />
+            {notifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {notifications.length}
+              </span>
+            )}
+          </button>
+          {openDropdown === 'notifications' && (
+            <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white shadow-xl ring-1 ring-black ring-opacity-5 border border-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 z-50">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                <p className="text-sm font-semibold">Notifications</p>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-slate-500 dark:text-slate-300 text-sm">No new notifications</div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div key={notif.id} className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                      <Bell className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Low stock: <span className="font-bold">{notif.name}</span></p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">Only {notif.quantity} left in stock</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
         {/* Dark Mode Toggle */}
         <button
-          onClick={toggleDarkMode}
-          className="rounded-md p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+          onClick={toggleTheme}
+          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-800"
         >
-          {isDarkMode ? (
+          {theme === 'dark' ? (
             <Sun className="h-5 w-5" />
           ) : (
             <Moon className="h-5 w-5" />
@@ -34,24 +115,38 @@ export default function Topbar() {
         {/* User Menu */}
         <div className="relative">
           <button
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center space-x-2 rounded-md p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            onClick={() => setOpenDropdown('profile')}
+            className="flex items-center space-x-3 p-2 rounded-lg transition-colors bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 min-w-[220px]"
           >
-            <User className="h-5 w-5" />
-            <span className="text-sm font-medium text-gray-700">
-              {user?.email || 'User'}
-            </span>
-            <ChevronDown className="h-4 w-4" />
+            <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-white" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{displayName}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{isDemoUser ? 'Demo User' : 'Administrator'}</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-slate-700 dark:text-slate-200" />
           </button>
           
-          {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-              <div className="px-4 py-2 text-sm text-gray-700">
-                Signed in as <strong>{user?.email}</strong>
+          {openDropdown === 'profile' && (
+            <div ref={profileMenuRef} className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white shadow-xl ring-1 ring-black ring-opacity-5 border border-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 z-50">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                <p className="text-sm text-slate-700 dark:text-slate-100 break-all">
+                  Signed in as <strong className="break-all">{displayEmail}</strong>
+                </p>
               </div>
-              <div className="border-t border-gray-100">
-                <button className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                  Profile Settings
+              <div className="py-2">
+                <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 dark:text-slate-100 dark:hover:bg-slate-800">
+                  <User className="h-4 w-4" />
+                  <span>Profile Settings</span>
+                </button>
+                <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 dark:text-slate-100 dark:hover:bg-slate-800">
+                  <Settings className="h-4 w-4" />
+                  <span>Preferences</span>
+                </button>
+                <div className="border-t border-slate-100 my-2 dark:border-slate-700"></div>
+                <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900">
+                  Sign Out
                 </button>
               </div>
             </div>

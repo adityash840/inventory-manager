@@ -1,85 +1,73 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/utils'
 import { 
+  TrendingUp, 
+  TrendingDown, 
   Package, 
-  ShoppingCart, 
   DollarSign, 
-  AlertTriangle 
+  AlertTriangle, 
+  ShoppingCart,
+  Users,
+  Activity
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
+import { supabase } from '../lib/supabase'
+import { useDataStatus } from '../contexts/DataStatusContext'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSales: 0,
-    totalValue: 0,
-    lowStockCount: 0
+    totalRevenue: 0,
+    lowStockItems: 0
   })
-  const [salesData, setSalesData] = useState([])
-  const [categoryData, setCategoryData] = useState([])
+  const [recentSales, setRecentSales] = useState([])
+  const [lowStockProducts, setLowStockProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const { setIsDemo } = useDataStatus()
 
   useEffect(() => {
     fetchDashboardData()
+    // eslint-disable-next-line
   }, [])
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true)
       // Fetch products
-      const { data: products } = await supabase
+      const { data: products, error: productsError } = await supabase
         .from('products')
         .select('*')
-
       // Fetch sales
-      const { data: sales } = await supabase
+      let salesData = []
+      const { data: sales, error: salesError } = await supabase
         .from('sales')
-        .select('*, products(*)')
-
-      if (products && sales) {
-        const totalProducts = products.length
-        const totalSales = sales.length
-        const totalValue = products.reduce((sum, product) => sum + (product.price * product.quantity), 0)
-        const lowStockCount = products.filter(product => product.quantity < 10).length
-
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (!salesError) {
+        salesData = sales || []
+      }
+      if (productsError) {
+        setIsDemo(true)
+        setStats({ totalProducts: 0, totalSales: 0, totalRevenue: 0, lowStockItems: 0 })
+        setRecentSales([])
+        setLowStockProducts([])
+      } else {
+        setIsDemo(false)
+        const productsData = products || []
+        const lowStockItems = productsData.filter(p => p.quantity < 10)
+        const totalRevenue = salesData.reduce((sum, sale) => sum + ((sale.quantity || 0) * (sale.price || 0)), 0)
         setStats({
-          totalProducts,
-          totalSales,
-          totalValue,
-          lowStockCount
+          totalProducts: productsData.length,
+          totalSales: salesData.length,
+          totalRevenue: totalRevenue,
+          lowStockItems: lowStockItems.length
         })
-
-        // Process sales data for chart
-        const salesByDate = sales.reduce((acc, sale) => {
-          const date = new Date(sale.sold_at).toLocaleDateString()
-          acc[date] = (acc[date] || 0) + sale.quantity
-          return acc
-        }, {})
-
-        const chartData = Object.entries(salesByDate).map(([date, quantity]) => ({
-          date,
-          quantity
-        }))
-
-        setSalesData(chartData)
-
-        // Process category data
-        const categoryCount = products.reduce((acc, product) => {
-          acc[product.category] = (acc[product.category] || 0) + 1
-          return acc
-        }, {})
-
-        const pieData = Object.entries(categoryCount).map(([name, value]) => ({
-          name,
-          value
-        }))
-
-        setCategoryData(pieData)
+        setRecentSales(salesData)
+        setLowStockProducts(lowStockItems)
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+      setLoading(false)
     } finally {
       setLoading(false)
     }
@@ -95,98 +83,118 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-      
-      {/* Stats Cards */}
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h1>
+        <p className="text-slate-600 dark:text-slate-300 mt-1">Welcome to your inventory management dashboard</p>
+        
+        {/* Data Status Indicator */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-slate-800 dark:border-blue-900">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            {stats.totalProducts > 0 || stats.totalSales > 0
+              ? "✅ Connected to Supabase - Using real data"
+              : "🔄 Connected to Supabase - No data yet"}
+          </p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Package className="h-8 w-8 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <Package className="h-6 w-6 text-blue-600 dark:text-blue-300" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Products</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalProducts}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Products</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalProducts}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <ShoppingCart className="h-8 w-8 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-300" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Sales</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalSales}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Revenue</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(stats.totalRevenue)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <DollarSign className="h-8 w-8 text-yellow-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+              <ShoppingCart className="h-6 w-6 text-purple-600 dark:text-purple-300" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Inventory Value</p>
-              <p className="text-2xl font-semibold text-gray-900">{formatCurrency(stats.totalValue)}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Sales</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalSales}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
+            <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+              <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-300" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Low Stock Items</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.lowStockCount}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Low Stock Items</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.lowStockItems}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Sales Over Time</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="quantity" stroke="#3B82F6" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Recent Sales */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Recent Sales</h2>
+        {recentSales.length === 0 ? (
+          <div className="text-slate-500 dark:text-slate-300">No recent sales</div>
+        ) : (
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-900">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Sale ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Product ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Quantity</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Price</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {recentSales.map(sale => (
+                <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{sale.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-slate-300">{sale.product_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{sale.quantity}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{formatCurrency(sale.price)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
-        {/* Category Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Products by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Low Stock Alerts */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Low Stock Alerts</h2>
+        {lowStockProducts.length === 0 ? (
+          <div className="text-green-600 dark:text-green-400">No low stock products! 🎉</div>
+        ) : (
+          <ul className="space-y-2">
+            {lowStockProducts.map(product => (
+              <li key={product.id} className="flex items-center justify-between p-4 rounded-lg bg-red-50 dark:bg-red-900">
+                <div>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{product.name}</span>
+                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-300">SKU: {product.sku}</span>
+                </div>
+                <span className="text-red-600 dark:text-red-200 font-bold">{product.quantity} left</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

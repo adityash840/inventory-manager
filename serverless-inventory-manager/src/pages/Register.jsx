@@ -1,43 +1,40 @@
 import { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
-export default function Login() {
+export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const navigate = useNavigate()
   const { login } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password
       })
-
       if (error) {
         setError(error.message)
       } else if (data.user) {
         login(data.user)
+        navigate('/dashboard')
+      } else {
+        setError('Check your email to confirm your account.')
       }
-    } catch (error) {
-      console.error('Login error:', error)
+    } catch (err) {
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleDemoLogin = () => {
-    login({ id: 'demo-user', email: 'demo@example.com' })
   }
 
   return (
@@ -50,8 +47,8 @@ export default function Login() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
-            <p className="text-slate-600">Sign in to your inventory dashboard</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Create Account</h1>
+            <p className="text-slate-600">Sign up to manage your inventory</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,7 +77,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-12 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                 />
                 <button
                   type="button"
@@ -106,46 +103,22 @@ export default function Login() {
               {loading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                'Sign In'
+                'Sign Up'
               )}
             </button>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">Or continue with</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleDemoLogin}
-              className="mt-4 w-full bg-slate-100 text-slate-700 py-3 px-4 rounded-lg font-medium hover:bg-slate-200 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200"
-            >
-              Try Demo Mode
-            </button>
-          </div>
-
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign up
+              Already have an account?{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign in
               </Link>
             </p>
           </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-400">
-            Demo mode allows you to explore the interface without authentication
-          </p>
         </div>
       </div>
     </div>
