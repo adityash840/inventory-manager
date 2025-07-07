@@ -18,7 +18,8 @@ export default function Dashboard() {
     totalProducts: 0,
     totalSales: 0,
     totalRevenue: 0,
-    lowStockItems: 0
+    lowStockItems: 0,
+    avgOrderValue: 0
   })
   const [recentSales, setRecentSales] = useState([])
   const [lowStockProducts, setLowStockProducts] = useState([])
@@ -39,31 +40,60 @@ export default function Dashboard() {
         .select('*')
       // Fetch sales
       let salesData = []
-      const { data: sales, error: salesError } = await supabase
-        .from('sales')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (!salesError) {
-        salesData = sales || []
+      let salesError = null
+      let sales = []
+      try {
+        const { data, error } = await supabase
+          .from('sales')
+          .select('*, products(name)')
+          .order('created_at', { ascending: false })
+        if (error && error.message.includes('created_at')) {
+          // Fallback to ordering by id if created_at doesn't exist
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('sales')
+            .select('*, products(name)')
+            .order('id', { ascending: false })
+          sales = fallbackData || []
+          salesError = fallbackError
+        } else {
+          sales = data || []
+          salesError = error
+        }
+      } catch (err) {
+        sales = []
+        salesError = err
       }
+      salesData = sales
+      // Debug: log sales data to help diagnose NaN
+      console.log('Dashboard salesData:', salesData)
       if (productsError) {
         setIsDemo(true)
-        setStats({ totalProducts: 0, totalSales: 0, totalRevenue: 0, lowStockItems: 0 })
+        setStats({ totalProducts: 0, totalSales: 0, totalRevenue: 0, lowStockItems: 0, avgOrderValue: 0 })
         setRecentSales([])
         setLowStockProducts([])
       } else {
         setIsDemo(false)
         const productsData = products || []
         const lowStockItems = productsData.filter(p => p.quantity < 10)
-        const totalRevenue = salesData.reduce((sum, sale) => sum + ((sale.quantity || 0) * (sale.price || 0)), 0)
+        const totalRevenue = Array.isArray(salesData) && salesData.length > 0
+          ? salesData.reduce((sum, sale) => {
+              const quantity = Number(sale.quantity);
+              const price = Number(sale.price);
+              if (!isFinite(quantity) || !isFinite(price)) return sum;
+              return sum + (quantity * price);
+            }, 0)
+          : 0;
+        const avgOrderValue = (Array.isArray(salesData) && salesData.length > 0 && isFinite(totalRevenue))
+          ? totalRevenue / salesData.length
+          : 0;
         setStats({
           totalProducts: productsData.length,
           totalSales: salesData.length,
           totalRevenue: totalRevenue,
+          avgOrderValue: avgOrderValue,
           lowStockItems: lowStockItems.length
         })
-        setRecentSales(salesData)
+        setRecentSales(salesData.slice(0, 5))
         setLowStockProducts(lowStockItems)
       }
     } catch (error) {
@@ -71,6 +101,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper to get product name from product_id
+  function getProductName(sale) {
+    return sale.products?.name || (typeof sale.product_id === 'string' && sale.product_id.length > 8 ? sale.product_id.slice(0, 8) : sale.product_id)
   }
 
   if (loading) {
@@ -118,7 +153,7 @@ export default function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Revenue</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(Number.isFinite(stats.totalRevenue) ? stats.totalRevenue : 0)}</p>
             </div>
           </div>
         </div>
@@ -146,6 +181,18 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-yellow-600 dark:text-yellow-300" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Avg Order Value</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(Number.isFinite(stats.avgOrderValue) ? stats.avgOrderValue : 0)}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Sales */}
@@ -166,8 +213,8 @@ export default function Dashboard() {
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
               {recentSales.map(sale => (
                 <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{sale.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-slate-300">{sale.product_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{typeof sale.id === 'string' && sale.id.length > 8 ? sale.id.slice(0, 8) : sale.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-slate-300">{getProductName(sale)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{sale.quantity}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-900 dark:text-slate-100">{formatCurrency(sale.price)}</td>
                 </tr>

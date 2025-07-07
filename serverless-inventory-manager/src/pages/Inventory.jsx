@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatCurrency } from '../lib/utils'
 import { Plus, Edit, Trash2, Search, Filter } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useDataStatus } from '../contexts/DataStatusContext'
+import { Listbox } from '@headlessui/react'
+import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 
 export default function Inventory() {
   const [products, setProducts] = useState([])
@@ -20,10 +23,20 @@ export default function Inventory() {
     description: ''
   })
   const { setIsDemo } = useDataStatus()
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  const categoryButtonRef = useRef(null)
+  const location = useLocation()
 
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  // Prefill searchTerm from URL query param on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const search = params.get('search')
+    if (search) setSearchTerm(search)
+  }, [location.search])
 
   const fetchProducts = async () => {
     try {
@@ -72,7 +85,13 @@ export default function Inventory() {
           })
           .eq('id', editingProduct.id)
 
-        if (error) throw error
+        if (error) {
+          if (error.code === '23505' && error.message.includes('duplicate key value')) {
+            alert('A product with this SKU already exists. Please use a unique SKU.')
+            return;
+          }
+          throw error
+        }
       } else {
         const { error } = await supabase
           .from('products')
@@ -85,7 +104,13 @@ export default function Inventory() {
             description: formData.description
           }])
 
-        if (error) throw error
+        if (error) {
+          if (error.code === '23505' && error.message.includes('duplicate key value')) {
+            alert('A product with this SKU already exists. Please use a unique SKU.')
+            return;
+          }
+          throw error
+        }
       }
 
       setShowModal(false)
@@ -154,6 +179,30 @@ export default function Inventory() {
 
   const categories = [...new Set(products.map(p => p.category))]
 
+  // Simple Portal component
+  function Portal({ children }) {
+    if (typeof window === 'undefined') return null;
+    const el = document.getElementById('dropdown-portal-root') || (() => {
+      const el = document.createElement('div');
+      el.id = 'dropdown-portal-root';
+      document.body.appendChild(el);
+      return el;
+    })();
+    return createPortal(children, el);
+  }
+
+  // Handler to update dropdown position
+  const handleOpenDropdown = () => {
+    if (categoryButtonRef.current) {
+      const rect = categoryButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -192,22 +241,50 @@ export default function Inventory() {
         </div>
         <div className="flex items-center space-x-2">
           <Filter className="h-4 w-4 text-slate-400" />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
-          >
-            <option value="all">All Categories</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Listbox value={selectedCategory} onChange={setSelectedCategory}>
+              <div className="relative">
+                <Listbox.Button
+                  ref={categoryButtonRef}
+                  className="w-full py-2 px-4 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onClick={handleOpenDropdown}
+                >
+                  {selectedCategory === 'all' ? 'All Categories' : selectedCategory}
+                </Listbox.Button>
+                <Portal>
+                  <Listbox.Options
+                    style={{
+                      position: 'absolute',
+                      top: dropdownPosition.top,
+                      left: dropdownPosition.left,
+                      width: dropdownPosition.width,
+                      zIndex: 2000
+                    }}
+                    className="rounded-lg bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black ring-opacity-5 border border-slate-200 dark:border-slate-700"
+                  >
+                    <Listbox.Option value="all" className={({ active, selected }) =>
+                      `cursor-pointer select-none py-2 px-4 text-slate-900 dark:text-slate-100 ${active ? 'bg-blue-100 dark:bg-slate-700' : ''} ${selected ? 'font-bold' : ''}`
+                    }>
+                      All Categories
+                    </Listbox.Option>
+                    {categories.map(category => (
+                      <Listbox.Option key={category} value={category} className={({ active, selected }) =>
+                        `cursor-pointer select-none py-2 px-4 text-slate-900 dark:text-slate-100 ${active ? 'bg-blue-100 dark:bg-slate-700' : ''} ${selected ? 'font-bold' : ''}`
+                      }>
+                        {category}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Portal>
+              </div>
+            </Listbox>
+          </div>
         </div>
       </div>
 
-      <div className="table-container mt-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+      <div className="table-container mt-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 z-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 z-0">
             <thead className="bg-slate-50 dark:bg-slate-900">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">

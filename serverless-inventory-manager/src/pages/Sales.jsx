@@ -120,29 +120,52 @@ export default function Sales() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    try {
-      const selectedProduct = products.find(p => p.id == formData.product_id)
-      const total = parseFloat(formData.price) * parseInt(formData.quantity)
+    // Fetch the latest product directly from Supabase for accurate inventory check
+    const { data: latestProduct, error: fetchError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', formData.product_id)
+      .single();
 
-      const { error } = await supabase
-        .from('sales')
-        .insert([{
-          product_id: formData.product_id,
-          quantity: parseInt(formData.quantity),
-          price: parseFloat(formData.price),
-          total: total
-        }])
-
-      if (error) throw error
-
-      setShowModal(false)
-      resetForm()
-      fetchSales()
-    } catch (error) {
-      console.error('Error saving sale:', error)
-      alert('Error saving sale. Please try again.')
+    if (fetchError || !latestProduct) {
+      alert('Could not fetch latest product data.');
+      return;
     }
+    const currentQty = Number(latestProduct.quantity);
+    const saleQty = Number(formData.quantity);
+    if (!isFinite(currentQty) || !isFinite(saleQty) || saleQty > currentQty) {
+      alert('Not enough inventory to complete this sale.');
+      return;
+    }
+
+    const total = parseFloat(formData.price) * saleQty;
+
+    const { error } = await supabase
+      .from('sales')
+      .insert([{
+        product_id: formData.product_id,
+        quantity: saleQty,
+        price: parseFloat(formData.price)
+      }]);
+
+    if (error) throw error;
+
+    // Decrease product quantity in inventory
+    const newQuantity = Math.max(0, currentQty - saleQty);
+    console.log('Update payload:', { quantity: newQuantity });
+    const { error: updateError, data: updateData } = await supabase
+      .from('products')
+      .update({ quantity: newQuantity })
+      .eq('id', formData.product_id);
+    console.log('Update result:', updateData, updateError);
+    if (updateError) {
+      alert('Sale added, but failed to update inventory.');
+      console.error('Error updating product quantity:', updateError);
+    }
+
+    setShowModal(false);
+    resetForm();
+    fetchSales();
   }
 
   const resetForm = () => {
@@ -162,11 +185,28 @@ export default function Sales() {
     })
   }
 
-  const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0)
-  const totalSales = sales.length
-  const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0
+  const totalRevenue = sales.reduce((sum, sale) => {
+    const quantity = Number(sale.quantity);
+    const price = Number(sale.price);
+    if (!isFinite(quantity) || !isFinite(price)) return sum;
+    return sum + (quantity * price);
+  }, 0);
+  const totalSales = sales.length;
+  const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
   const recentSales = sales.slice(0, 5)
+
+  // Delete sale handler
+  const handleDeleteSale = async (saleId) => {
+    if (!window.confirm('Are you sure you want to delete this sale?')) return;
+    const { error } = await supabase.from('sales').delete().eq('id', saleId);
+    if (error) {
+      alert('Failed to delete sale.');
+      console.error('Error deleting sale:', error);
+    } else {
+      fetchSales();
+    }
+  };
 
   if (loading) {
     return (
@@ -184,7 +224,7 @@ export default function Sales() {
           <p className="text-slate-600 dark:text-slate-300 mt-1">Track your sales and revenue</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => { fetchProducts(); setShowModal(true); }}
           className="btn-primary flex items-center space-x-2"
         >
           <Plus className="h-4 w-4" />
@@ -244,22 +284,26 @@ export default function Sales() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Product</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Quantity</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
               {recentSales.map((sale) => (
                 <tr key={sale.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
-                    {sale.id}
+                    {typeof sale.id === 'string' && sale.id.length > 8 ? sale.id.slice(0, 8) : sale.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
-                    {sale.product_name}
+                    {sale.products?.name || sale.product_name || (typeof sale.product_id === 'string' && sale.product_id.length > 8 ? sale.product_id.slice(0, 8) : sale.product_id)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                     {sale.quantity}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                     {formatCurrency(sale.price)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400">
+                    <button onClick={() => handleDeleteSale(sale.id)} title="Delete Sale" className="hover:underline">Delete</button>
                   </td>
                 </tr>
               ))}
