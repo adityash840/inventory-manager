@@ -13,8 +13,11 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
+  console.log('Login page loaded');
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log('Login form submitted')
     setLoading(true)
     setError('')
 
@@ -23,6 +26,9 @@ export default function Login() {
         email,
         password
       })
+
+      console.log('Supabase login data:', data)
+      console.log('Supabase login error:', error)
 
       if (error) {
         setError(error.message)
