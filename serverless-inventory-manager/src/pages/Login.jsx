@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY);
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
