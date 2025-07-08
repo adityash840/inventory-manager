@@ -7,7 +7,6 @@ import Analytics from './pages/Analytics'
 import Alerts from './pages/Alerts'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import { DataStatusProvider } from './contexts/DataStatusContext'
 import { useAuth } from './contexts/AuthContext'
 import { AuthProvider } from './contexts/AuthContext'
@@ -54,7 +53,6 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               <Route
                 path="/*"
                 element={

@@ -47,7 +47,6 @@ export default function Inventory() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        setIsDemo(true)
         // Fallback to mock data if Supabase is not configured
         const mockProducts = [
           { id: 1, name: 'Laptop', sku: 'LAP001', category: 'Electronics', price: 999.99, quantity: 15, description: 'High-performance laptop' },
@@ -58,7 +57,6 @@ export default function Inventory() {
         ]
         setProducts(mockProducts)
       } else {
-        setIsDemo(false)
         setProducts(data || [])
       }
     } catch (error) {

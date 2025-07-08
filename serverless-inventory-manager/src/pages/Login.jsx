@@ -126,6 +126,7 @@ export default function Login() {
           </form>
 
           <div className="mt-6">
+            {/* Remove the following structure:
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200" />
@@ -134,29 +135,8 @@ export default function Login() {
                 <span className="px-2 bg-white text-slate-500">Or continue with</span>
               </div>
             </div>
-
-            <button
-              onClick={handleDemoLogin}
-              className="mt-4 w-full bg-slate-100 text-slate-700 py-3 px-4 rounded-lg font-medium hover:bg-slate-200 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200"
-            >
-              Try Demo Mode
-            </button>
+            */}
           </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-sm text-slate-500">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-400">
-            Demo mode allows you to explore the interface without authentication
-          </p>
         </div>
       </div>
     </div>

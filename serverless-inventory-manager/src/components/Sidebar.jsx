@@ -9,7 +9,6 @@ import {
   Users,
   BarChart3
 } from 'lucide-react'
-import { useDataStatus } from '../contexts/DataStatusContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -24,7 +23,6 @@ const navigation = [
 
 export default function Sidebar() {
   const location = useLocation()
-  const { isDemo } = useDataStatus()
 
   return (
     <div className="flex h-full w-72 flex-col sidebar bg-gradient-to-b from-slate-900 to-slate-800 dark:from-slate-900 dark:to-slate-800 dark:text-slate-100">
@@ -63,22 +61,6 @@ export default function Sidebar() {
           )
         })}
       </nav>
-      
-      {isDemo && (
-        <div className="border-t border-slate-700/50 p-4">
-          <div className="bg-slate-800/50 rounded-xl p-4">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
-                <span className="text-xs font-bold text-white">D</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">Demo Mode</p>
-                <p className="text-xs text-slate-400">Limited functionality</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 } 

@@ -11,7 +11,6 @@ import {
   Activity
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useDataStatus } from '../contexts/DataStatusContext'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -24,7 +23,6 @@ export default function Dashboard() {
   const [recentSales, setRecentSales] = useState([])
   const [lowStockProducts, setLowStockProducts] = useState([])
   const [loading, setLoading] = useState(true)
-  const { setIsDemo } = useDataStatus()
 
   useEffect(() => {
     fetchDashboardData()
@@ -67,12 +65,10 @@ export default function Dashboard() {
       // Debug: log sales data to help diagnose NaN
       console.log('Dashboard salesData:', salesData)
       if (productsError) {
-        setIsDemo(true)
         setStats({ totalProducts: 0, totalSales: 0, totalRevenue: 0, lowStockItems: 0, avgOrderValue: 0 })
         setRecentSales([])
         setLowStockProducts([])
       } else {
-        setIsDemo(false)
         const productsData = products || []
         const lowStockItems = productsData.filter(p => p.quantity < 10)
         const totalRevenue = Array.isArray(salesData) && salesData.length > 0
@@ -121,15 +117,6 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h1>
         <p className="text-slate-600 dark:text-slate-300 mt-1">Welcome to your inventory management dashboard</p>
-        
-        {/* Data Status Indicator */}
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-slate-800 dark:border-blue-900">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            {stats.totalProducts > 0 || stats.totalSales > 0
-              ? "✅ Connected to Supabase - Using real data"
-              : "🔄 Connected to Supabase - No data yet"}
-          </p>
-        </div>
       </div>
 
       {/* Stats Grid */}

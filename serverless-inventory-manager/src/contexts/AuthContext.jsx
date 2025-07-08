@@ -33,12 +33,10 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       console.log('Logout called')
-      if (user && user.id !== 'demo-user') {
-        await supabase.auth.signOut()
-        console.log('Called supabase.auth.signOut()')
-        const { data: { session } } = await supabase.auth.getSession()
-        console.log('Session after signOut:', session)
-      }
+      await supabase.auth.signOut()
+      console.log('Called supabase.auth.signOut()')
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Session after signOut:', session)
       setUser(null)
       console.log('User set to null')
     } catch (error) {
