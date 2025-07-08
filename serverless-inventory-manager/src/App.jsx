@@ -5,7 +5,6 @@ import Inventory from './pages/Inventory'
 import Sales from './pages/Sales'
 import Analytics from './pages/Analytics'
 import Alerts from './pages/Alerts'
-import Settings from './pages/Settings'
 import Login from './pages/Login'
 import { DataStatusProvider } from './contexts/DataStatusContext'
 import { useAuth } from './contexts/AuthContext'
@@ -66,7 +65,6 @@ function App() {
                         <Route path="/customers" element={<Customers />} />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/alerts" element={<Alerts />} />
-                        <Route path="/settings" element={<Settings />} />
                         <Route path="/" element={<Dashboard />} />
                       </Routes>
                     </Layout>

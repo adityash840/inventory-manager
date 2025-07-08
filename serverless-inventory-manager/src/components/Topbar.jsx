@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Moon, Sun, ChevronDown, Bell, Search, Settings } from 'lucide-react'
+import { User, Moon, Sun, ChevronDown, Bell, Search } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../lib/supabase'
@@ -208,10 +208,6 @@ export default function Topbar({ openDropdown, setOpenDropdown }) {
                   <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 dark:text-slate-100 dark:hover:bg-slate-800">
                     <User className="h-4 w-4" />
                     <span>Profile Settings</span>
-                  </button>
-                  <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 dark:text-slate-100 dark:hover:bg-slate-800">
-                    <Settings className="h-4 w-4" />
-                    <span>Preferences</span>
                   </button>
                   <div className="border-t border-slate-100 my-2 dark:border-slate-700"></div>
                   <button

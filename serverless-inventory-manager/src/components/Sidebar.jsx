@@ -4,7 +4,6 @@ import {
   Package, 
   ShoppingCart, 
   AlertTriangle, 
-  Settings,
   TrendingUp,
   Users,
   BarChart3
@@ -18,7 +17,6 @@ const navigation = [
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Reports', href: '/reports', icon: TrendingUp },
   { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
-  { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export default function Sidebar() {
